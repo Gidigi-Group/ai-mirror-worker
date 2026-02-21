@@ -6,17 +6,41 @@ HF_ORG = os.environ.get("HF_ORG")
 
 api = HfApi(token=HF_TOKEN)
 
-print("🔎 Discovering models...")
+print("🔎 Discovering models across categories...")
 
-models = api.list_models(sort="downloads", direction=-1, limit=200)
+search_queries = [
+    "text-generation",
+    "llm",
+    "transformer",
+    "diffusion",
+    "stable-diffusion",
+    "vision",
+    "image",
+    "audio",
+    "speech",
+    "whisper",
+    "embedding",
+    "sentence",
+    "multimodal",
+    "clip",
+    "code",
+    "agent",
+    "chat",
+]
 
-queue = []
+queue = set()
 
-for m in models:
-    queue.append(m.id)
+for query in search_queries:
+    print(f"Searching: {query}")
+    models = api.list_models(search=query, limit=200)
+
+    for m in models:
+        queue.add(m.id)
+
+print(f"Total discovered: {len(queue)}")
 
 with open("models.txt", "w") as f:
-    for m in queue:
-        f.write(m + "\n")
+    for model_id in queue:
+        f.write(model_id + "\n")
 
 print("✅ models.txt updated")
