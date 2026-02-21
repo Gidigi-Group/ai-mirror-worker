@@ -26,7 +26,7 @@ print(f"\n🚀 Mirroring: {model}\n")
 
 local_dir = f"/tmp/{repo_name}"
 
-# ---------- DOWNLOAD MODEL ----------
+# ---------- DOWNLOAD ----------
 snapshot_download(
     repo_id=model,
     local_dir=local_dir,
@@ -44,11 +44,15 @@ api.create_repo(
     exist_ok=True
 )
 
-# ---------- PUSH TO HF ----------
+# ---------- PUSH ----------
 os.chdir(local_dir)
 
 subprocess.run(["git", "init"], check=True)
 subprocess.run(["git", "lfs", "track", "*"], check=True)
+
+# ENABLE LARGE FILES (>5GB)
+subprocess.run(["huggingface-cli", "lfs-enable-largefiles", "."], check=True)
+
 subprocess.run(["git", "add", "."], check=True)
 subprocess.run(["git", "commit", "-m", "mirror"], check=True)
 
@@ -57,7 +61,7 @@ remote = f"https://user:{HF_TOKEN}@huggingface.co/{HF_ORG}/{repo_name}"
 subprocess.run(["git", "branch", "-M", "main"], check=True)
 subprocess.run(["git", "remote", "add", "origin", remote], check=True)
 
-# ---------- FORCE PUSH (IMPORTANT FIX) ----------
+# FORCE PUSH
 subprocess.run(["git", "push", "--force", "origin", "main"], check=True)
 
 print(f"\n✅ SUCCESS: {model} mirrored\n")
