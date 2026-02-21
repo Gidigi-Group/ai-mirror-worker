@@ -20,8 +20,11 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install huggingface_hub gitpython
-
+          pip install huggingface_hub gitpython hf-transfer
+          
+          # Install official HF CLI
+          pip install -U "huggingface_hub[cli]"
+          
       - name: Configure Git Identity
         run: |
           git config --global user.email "bot@mirror.ai"
