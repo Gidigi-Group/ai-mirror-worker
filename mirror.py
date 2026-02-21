@@ -50,8 +50,11 @@ os.chdir(local_dir)
 subprocess.run(["git", "init"], check=True)
 subprocess.run(["git", "lfs", "track", "*"], check=True)
 
-# ENABLE LARGE FILES (>5GB)
-subprocess.run(["huggingface-cli", "lfs-enable-largefiles", "."], check=True)
+# ENABLE LARGE FILE SUPPORT USING PYTHON MODULE
+subprocess.run(
+    ["python", "-m", "huggingface_hub", "lfs-enable-largefiles", "."],
+    check=False
+)
 
 subprocess.run(["git", "add", "."], check=True)
 subprocess.run(["git", "commit", "-m", "mirror"], check=True)
