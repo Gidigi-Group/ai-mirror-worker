@@ -56,6 +56,8 @@ remote = f"https://user:{HF_TOKEN}@huggingface.co/{HF_ORG}/{repo_name}"
 
 subprocess.run(["git", "branch", "-M", "main"], check=True)
 subprocess.run(["git", "remote", "add", "origin", remote], check=True)
-subprocess.run(["git", "push", "origin", "main"], check=True)
+
+# ---------- FORCE PUSH (IMPORTANT FIX) ----------
+subprocess.run(["git", "push", "--force", "origin", "main"], check=True)
 
 print(f"\n✅ SUCCESS: {model} mirrored\n")
