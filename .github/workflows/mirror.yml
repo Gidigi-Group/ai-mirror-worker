@@ -6,7 +6,35 @@ on:
     - cron: "0 */6 * * *"
 
 jobs:
+
+  discover:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          pip install huggingface_hub
+
+      - name: Discover Models
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG: ${{ secrets.HF_ORG }}
+        run: |
+          python discover_models.py
+
+      - name: Commit Queue
+        run: |
+          git config --global user.email "bot@mirror.ai"
+          git config --global user.name "Mirror Bot"
+          git add models.txt
+          git commit -m "update queue" || true
+          git push
+
+
   mirror:
+    needs: discover
     runs-on: ubuntu-latest
 
     strategy:
@@ -15,17 +43,14 @@ jobs:
         model_index: [0, 1, 2, 3, 4]
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Dependencies
         run: |
           pip install huggingface_hub gitpython hf-transfer
-          
-          # Install official HF CLI
           pip install -U "huggingface_hub[cli]"
-          
-      - name: Configure Git Identity
+
+      - name: Configure Git
         run: |
           git config --global user.email "bot@mirror.ai"
           git config --global user.name "Mirror Bot"
