@@ -8,22 +8,27 @@ on:
 jobs:
   mirror:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        model: [0,1,2,3,4]
+        model_index: [0, 1, 2, 3, 4]
 
     steps:
-
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           pip install huggingface_hub gitpython
 
-      - name: Mirror Model
+      - name: Configure Git Identity
+        run: |
+          git config --global user.email "bot@mirror.ai"
+          git config --global user.name "Mirror Bot"
+
+      - name: Run Mirror Worker
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_ORG: ${{ secrets.HF_ORG }}
         run: |
-          python mirror.py ${{ matrix.model }}
+          python mirror.py ${{ matrix.model_index }}
