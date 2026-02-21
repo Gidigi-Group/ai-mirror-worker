@@ -1,0 +1,5 @@
+mistralai/Mistral-7B-v0.1
+google/flan-t5-xl
+sentence-transformers/all-MiniLM-L6-v2
+openai/whisper-base
+runwayml/stable-diffusion-v1-5
