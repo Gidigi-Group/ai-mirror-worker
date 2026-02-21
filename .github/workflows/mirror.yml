@@ -6,7 +6,7 @@ on:
     - cron: "0 */6 * * *"
 
 permissions:
-  contents: write   # ⭐ IMPORTANT — allows workflow to push commits
+  contents: write
 
 jobs:
 
@@ -14,8 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Dependencies
         run: |
@@ -47,8 +46,7 @@ jobs:
         model_index: [0, 1, 2, 3, 4]
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Dependencies
         run: |
