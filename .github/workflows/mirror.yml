@@ -21,7 +21,6 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install huggingface_hub gitpython
-          pip install "huggingface_hub[cli]"
 
       - name: Configure Git Identity
         run: |
