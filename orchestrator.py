@@ -1,7 +1,6 @@
 import requests
 import base64
 import os
-import json
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 ORG_NAME = os.environ.get("ORG_NAME")
@@ -30,14 +29,25 @@ def get_repos():
     url = f"https://api.github.com/orgs/{ORG_NAME}/repos?per_page=100"
 
     r = requests.get(url, headers=headers)
+
+    if r.status_code != 200:
+        print("❌ GitHub API Error")
+        print(r.text)
+        raise SystemExit(1)
+
     data = r.json()
+
+    if not isinstance(data, list):
+        print("❌ Unexpected API response")
+        print(data)
+        raise SystemExit(1)
 
     repos = []
 
     for repo in data:
-        name = repo["name"]
+        name = repo.get("name")
 
-        if name.startswith(REPO_PREFIX):
+        if name and name.startswith(REPO_PREFIX):
             repos.append(name)
 
     return sorted(repos)
@@ -66,7 +76,8 @@ def upload_file(repo, path):
     if r.status_code in [200, 201]:
         print(f"Synced {repo}: {path}")
     else:
-        print(f"Failed {repo}: {path} → {r.text}")
+        print(f"Failed {repo}: {path}")
+        print(r.text)
 
 
 def trigger(repo, worker_id, total):
@@ -86,9 +97,11 @@ def trigger(repo, worker_id, total):
     if r.status_code in [204, 201]:
         print(f"Triggered {repo}")
     else:
-        print(f"Trigger failed {repo}: {r.text}")
+        print(f"Trigger failed {repo}")
+        print(r.text)
 
 
+# ---------- MAIN ----------
 repos = get_repos()
 
 total = len(repos)
