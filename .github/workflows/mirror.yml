@@ -1,67 +1,24 @@
-name: Mirror Models
+name: Sovereign AI Controller
 
 on:
   workflow_dispatch:
   schedule:
     - cron: "0 */6 * * *"
 
-permissions:
-  contents: write
-
 jobs:
 
-  discover:
+  orchestrate:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Dependencies
-        run: |
-          pip install huggingface_hub
+        run: pip install requests
 
-      - name: Discover Models
+      - name: Run Orchestrator
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_ORG: ${{ secrets.HF_ORG }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG_NAME: ${{ secrets.ORG_NAME }}
         run: |
-          python discover_models.py
-
-      - name: Commit Queue
-        run: |
-          git config --global user.email "bot@mirror.ai"
-          git config --global user.name "Mirror Bot"
-          git add models.txt
-          git commit -m "update queue" || true
-          git push
-
-
-  mirror:
-    needs: discover
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        model_index: [0,1,2,3,4,5,6,7,8,9]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Dependencies
-        run: |
-          pip install huggingface_hub gitpython hf-transfer
-          pip install -U "huggingface_hub[cli]"
-
-      - name: Configure Git
-        run: |
-          git config --global user.email "bot@mirror.ai"
-          git config --global user.name "Mirror Bot"
-          git config --global init.defaultBranch main
-
-      - name: Run Mirror Worker
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_ORG: ${{ secrets.HF_ORG }}
-        run: |
-          python mirror.py ${{ matrix.model_index }}
+          python orchestrator.py
