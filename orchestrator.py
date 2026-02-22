@@ -6,7 +6,6 @@ GH_PAT = os.environ.get("GH_PAT")
 ORG_NAME = os.environ.get("ORG_NAME")
 
 REPO_PREFIX = "ai-mirror-worker"
-WORKFLOW_FILE = ".github/workflows/mirror.yml"
 
 headers = {
     "Authorization": f"token {GH_PAT}",
@@ -14,69 +13,75 @@ headers = {
 }
 
 
-# ---------- FILES TO SYNC ----------
 FILES = [
     "mirror.py",
     "discover_models.py",
     "priority_models.py",
     "models.txt",
-    WORKFLOW_FILE,
 ]
+
+WORKER_WORKFLOW_SOURCE = "worker_mirror.yml"
+WORKER_WORKFLOW_TARGET = ".github/workflows/mirror.yml"
 
 
 def get_repos():
 
     url = f"https://api.github.com/orgs/{ORG_NAME}/repos?per_page=100"
-
     r = requests.get(url, headers=headers)
 
     if r.status_code != 200:
-        print("❌ GitHub API Error")
-        print(r.text)
-        raise SystemExit(1)
+        raise Exception(r.text)
 
     data = r.json()
-
-    if not isinstance(data, list):
-        print("❌ Unexpected API response")
-        print(data)
-        raise SystemExit(1)
 
     repos = []
 
     for repo in data:
-        name = repo.get("name")
-
-        if name and name.startswith(REPO_PREFIX):
+        name = repo["name"]
+        if name.startswith(REPO_PREFIX):
             repos.append(name)
 
     return sorted(repos)
 
 
-def get_file_content(path):
-
+def read_file(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 
-def upload_file(repo, path):
-
-    content = get_file_content(path)
+def get_sha(repo, path):
 
     url = f"https://api.github.com/repos/{ORG_NAME}/{repo}/contents/{path}"
+    r = requests.get(url, headers=headers)
+
+    if r.status_code == 200:
+        return r.json()["sha"]
+
+    return None
+
+
+def sync_file(repo, source_path, target_path):
+
+    content = read_file(source_path)
+    sha = get_sha(repo, target_path)
+
+    url = f"https://api.github.com/repos/{ORG_NAME}/{repo}/contents/{target_path}"
 
     data = {
-        "message": "auto sync",
+        "message": "sovereign sync",
         "content": content,
         "branch": "main"
     }
 
+    if sha:
+        data["sha"] = sha
+
     r = requests.put(url, headers=headers, json=data)
 
     if r.status_code in [200, 201]:
-        print(f"Synced {repo}: {path}")
+        print(f"✅ {repo}: {target_path}")
     else:
-        print(f"Failed {repo}: {path}")
+        print(f"❌ {repo}: {target_path}")
         print(r.text)
 
 
@@ -95,9 +100,9 @@ def trigger(repo, worker_id, total):
     r = requests.post(url, headers=headers, json=data)
 
     if r.status_code in [204, 201]:
-        print(f"Triggered {repo}")
+        print(f"🚀 Triggered {repo}")
     else:
-        print(f"Trigger failed {repo}")
+        print(f"❌ Trigger failed {repo}")
         print(r.text)
 
 
@@ -106,13 +111,17 @@ repos = get_repos()
 
 total = len(repos)
 
-print(f"Workers detected: {total}")
+print(f"\nWorkers detected: {total}\n")
 
 for i, repo in enumerate(repos):
 
     print(f"\n--- Syncing {repo} ---")
 
+    # Sync core files
     for file in FILES:
-        upload_file(repo, file)
+        sync_file(repo, file, file)
+
+    # Sync worker workflow automatically
+    sync_file(repo, WORKER_WORKFLOW_SOURCE, WORKER_WORKFLOW_TARGET)
 
     trigger(repo, i, total)
