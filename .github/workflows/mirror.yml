@@ -1,24 +1,43 @@
-name: Sovereign AI Controller
+name: Mirror Worker
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 */6 * * *"
+    inputs:
+      worker_id:
+        required: true
+      total_workers:
+        required: true
+
+permissions:
+  contents: write
 
 jobs:
-  orchestrate:
+  mirror:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        model_index: [0,1,2,3,4,5,6,7,8,9]
+
     steps:
-      - name: Checkout Template Repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Dependencies
-        run: pip install requests
-
-      - name: Run Orchestrator
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-          ORG_NAME: ${{ secrets.ORG_NAME }}
         run: |
-          python orchestrator.py
+          pip install huggingface_hub gitpython hf-transfer
+          pip install -U "huggingface_hub[cli]"
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "bot@mirror.ai"
+          git config --global user.name "Mirror Bot"
+
+      - name: Run Mirror
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG: ${{ secrets.HF_ORG }}
+          WORKER_ID: ${{ github.event.inputs.worker_id }}
+          TOTAL_WORKERS: ${{ github.event.inputs.total_workers }}
+        run: |
+          python mirror.py ${{ matrix.model_index }}
