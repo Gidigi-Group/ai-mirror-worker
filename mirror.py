@@ -1,22 +1,24 @@
 import os
 import sys
-import subprocess
 import hashlib
 import csv
-import shutil
-from huggingface_hub import snapshot_download, HfApi
+from huggingface_hub import HfApi, model_info, hf_hub_download, upload_file
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
 HF_ORG = os.environ.get("HF_ORG")
 
-if not HF_TOKEN or not HF_ORG:
-    raise ValueError("HF_TOKEN or HF_ORG not set")
+WORKER_ID = int(os.environ.get("WORKER_ID", "0"))
+TOTAL_WORKERS = int(os.environ.get("TOTAL_WORKERS", "1"))
 
 INDEX = int(sys.argv[1])
+
+api = HfApi(token=HF_TOKEN)
 
 # ---------- LOAD MODELS ----------
 with open("models.txt") as f:
     models = [x.strip() for x in f.readlines() if x.strip()]
+
+models = models[WORKER_ID::TOTAL_WORKERS]
 
 if INDEX >= len(models):
     print("No model for this index")
@@ -29,57 +31,53 @@ hash_id = hashlib.sha1(model.encode()).hexdigest()[:8]
 serial = str(INDEX).zfill(4)
 repo_name = f"gidigi_{hash_id}_{serial}"
 
-print(f"\n🚀 Mirroring: {model}")
-print(f"Repo Name: {repo_name}\n")
+dest_repo = f"{HF_ORG}/{repo_name}"
 
-local_dir = f"/tmp/{repo_name}"
+print(f"\n🚀 ZERO-DISK MIRROR: {model}")
+print(f"Destination: {dest_repo}\n")
 
-# ---------- CLEAN BEFORE ----------
-shutil.rmtree(local_dir, ignore_errors=True)
-os.makedirs(local_dir, exist_ok=True)
-
-# ---------- DOWNLOAD ----------
-snapshot_download(
-    repo_id=model,
-    local_dir=local_dir,
-    token=HF_TOKEN
-)
-
-# ---------- CREATE HF REPO ----------
-api = HfApi(token=HF_TOKEN)
-
+# ---------- CREATE DESTINATION ----------
 api.create_repo(
-    repo_id=f"{HF_ORG}/{repo_name}",
+    repo_id=dest_repo,
     repo_type="model",
     private=False,
     exist_ok=True
 )
 
-# ---------- PUSH ----------
-os.chdir(local_dir)
+# ---------- SERVER SIDE COPY ----------
+try:
 
-env = os.environ.copy()
-env["GIT_LFS_SKIP_SMUDGE"] = "1"
+    info = model_info(model, token=HF_TOKEN)
 
-subprocess.run(["git", "init"], check=True, env=env)
-subprocess.run(["git", "lfs", "track", "*"], check=True, env=env)
-subprocess.run(["hf", "lfs-enable-largefiles", "."], check=True, env=env)
+    for file in info.siblings:
 
-subprocess.run(["git", "add", "."], check=True, env=env)
-subprocess.run(["git", "commit", "-m", "mirror"], check=True, env=env)
+        if file.rfilename is None:
+            continue
 
-remote = f"https://user:{HF_TOKEN}@huggingface.co/{HF_ORG}/{repo_name}"
+        print(f"Copying {file.rfilename}")
 
-subprocess.run(["git", "branch", "-M", "main"], check=True, env=env)
-subprocess.run(["git", "remote", "add", "origin", remote], check=True, env=env)
+        # Stream download single file (temporary)
+        local_path = hf_hub_download(
+            repo_id=model,
+            filename=file.rfilename,
+            token=HF_TOKEN
+        )
 
-subprocess.run(
-    ["git", "push", "--force", "origin", "main"],
-    check=True,
-    env=env
-)
+        upload_file(
+            path_or_fileobj=local_path,
+            path_in_repo=file.rfilename,
+            repo_id=dest_repo,
+            repo_type="model",
+            token=HF_TOKEN
+        )
 
-print("\n✅ PUSH SUCCESS\n")
+    print("\n✅ MIRROR SUCCESS\n")
+
+except Exception as e:
+
+    print(f"Mirror failed: {e}")
+    sys.exit(0)
+
 
 # ---------- SAVE MAPPING ----------
 mapping_path = os.path.join(os.environ.get("GITHUB_WORKSPACE", "."), "mapping.csv")
@@ -87,17 +85,3 @@ mapping_path = os.path.join(os.environ.get("GITHUB_WORKSPACE", "."), "mapping.cs
 with open(mapping_path, "a", newline="") as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow([repo_name, model])
-
-print("Mapping saved")
-
-# ---------- CLEAN AFTER ----------
-try:
-    shutil.rmtree(local_dir, ignore_errors=True)
-
-    cache_dir = os.path.expanduser("~/.cache/huggingface")
-    shutil.rmtree(cache_dir, ignore_errors=True)
-
-except Exception as e:
-    print(f"Cleanup warning: {e}")
-
-print("\n🧹 Cleanup complete\n")
