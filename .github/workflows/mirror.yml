@@ -3,27 +3,21 @@ name: Sovereign AI Controller
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"   # every 6 hours
-
-permissions:
-  contents: read
+    - cron: "0 */6 * * *"
 
 jobs:
   orchestrate:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Template Repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Dependencies
-        run: |
-          pip install requests
+        run: pip install requests
 
       - name: Run Orchestrator
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           ORG_NAME: ${{ secrets.ORG_NAME }}
         run: |
-          python orchestrator.py
           python orchestrator.py
