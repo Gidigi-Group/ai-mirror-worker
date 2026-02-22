@@ -14,12 +14,13 @@ if not HF_TOKEN or not HF_ORG:
 
 INDEX = int(sys.argv[1])
 
+# ---------- LOAD MODELS ----------
 with open("models.txt") as f:
     models = [x.strip() for x in f.readlines() if x.strip()]
 
 if INDEX >= len(models):
     print("No model for this index")
-    exit(0)
+    sys.exit(0)
 
 model = models[INDEX]
 
@@ -33,7 +34,7 @@ print(f"Repo Name: {repo_name}\n")
 
 local_dir = f"/tmp/{repo_name}"
 
-# ---------- CLEAN BEFORE START ----------
+# ---------- CLEAN BEFORE ----------
 shutil.rmtree(local_dir, ignore_errors=True)
 os.makedirs(local_dir, exist_ok=True)
 
@@ -44,7 +45,7 @@ snapshot_download(
     token=HF_TOKEN
 )
 
-# ---------- CREATE REPO ----------
+# ---------- CREATE HF REPO ----------
 api = HfApi(token=HF_TOKEN)
 
 api.create_repo(
@@ -78,18 +79,25 @@ subprocess.run(
     env=env
 )
 
-# ---------- CLEAN AFTER PUSH ----------
-os.chdir("/")
-
-shutil.rmtree(local_dir, ignore_errors=True)
-
-# remove git lfs cache
-subprocess.run(["rm", "-rf", "~/.cache/huggingface"], shell=True)
-subprocess.run(["rm", "-rf", "~/.git-lfs"], shell=True)
+print("\n✅ PUSH SUCCESS\n")
 
 # ---------- SAVE MAPPING ----------
-with open("mapping.csv", "a", newline="") as csvfile:
+mapping_path = os.path.join(os.environ.get("GITHUB_WORKSPACE", "."), "mapping.csv")
+
+with open(mapping_path, "a", newline="") as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow([repo_name, model])
 
-print(f"\n✅ SUCCESS: {repo_name}\n")
+print("Mapping saved")
+
+# ---------- CLEAN AFTER ----------
+try:
+    shutil.rmtree(local_dir, ignore_errors=True)
+
+    cache_dir = os.path.expanduser("~/.cache/huggingface")
+    shutil.rmtree(cache_dir, ignore_errors=True)
+
+except Exception as e:
+    print(f"Cleanup warning: {e}")
+
+print("\n🧹 Cleanup complete\n")
