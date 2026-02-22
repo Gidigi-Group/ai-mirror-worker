@@ -2,14 +2,14 @@ import requests
 import base64
 import os
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GH_PAT = os.environ.get("GH_PAT")
 ORG_NAME = os.environ.get("ORG_NAME")
 
 REPO_PREFIX = "ai-mirror-worker"
 WORKFLOW_FILE = ".github/workflows/mirror.yml"
 
 headers = {
-    "Authorization": f"token {GITHUB_TOKEN}",
+    "Authorization": f"token {GH_PAT}",
     "Accept": "application/vnd.github+json"
 }
 
